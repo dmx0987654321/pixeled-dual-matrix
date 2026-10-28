@@ -31,19 +31,14 @@ class PlugOverlay:
     the hole it goes through - and the panel is left empty for a moment. Then
     what it would be showing comes back the way it normally arrives:
 
-    - a layout with a title row - the ticker over the gauges, the artwork's
-      title over its cover, the overview's over its stack - rises from below
-      under the row as the overlays do, while the row's line starts again
-      from its right edge, braking to rest or running on at reading speed as
-      it would after anything that interrupts it. The row is restarted
-      through the same handover the overlays use, so the report being read
-      picks up at the word it had got to.
+    - a layout with a title row - the ticker over the gauges or the artwork's
+      title over its cover - rises from below under the row, while the row's
+      line starts again from its right edge, braking to rest or running on at
+      reading speed as it would after anything that interrupts it. The row is
+      restarted through the same handover the overlays use, so the words being
+      read pick up at the point they had got to.
     - anything else - the visualizer over the whole panel, or a layout with
       no ticker - rises from below whole.
-
-    The overview's title has no handover to restart it through, so its row
-    slides in from the right instead, ramping up and braking to rest as the
-    line itself would.
 
     Not a module: it goes over whatever main.py composes, and is inert until
     a socket does something. The panel under it goes on being drawn while it

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Set how fast scrolling text moves, in pixels per second: the ticker, the
-# overview's window titles, and the music player's track title.
+# music player's track title.
 #
 # The running service polls this file about once a second, so no restart and no
 # root are needed. By default the file lives beside this script; override it

@@ -6,12 +6,11 @@ from utils.tiny_font import cut_at_unseen_word, draw_run, run_width
 class TickerLine:
     """A line of text scrolling along the title row, as a whole.
 
-    What the overview and the artwork share, and the transit ticker hands the
-    row to: words carried over from whoever had the row before, and then
-    whatever the owner puts on it - text, or a picture such as the sound
-    visualizer, which scrolls like a word. A place u on the line is drawn at
-    width + u - floor(scroll), so things put on the line keep their distance
-    from each other whatever starts or stops.
+    What the artwork shares with the audio visualizer: words carried over from
+    whoever had the row before, and then whatever the owner puts on it - text,
+    or a picture such as the sound visualizer, which scrolls like a word. A
+    place u on the line is drawn at width + u - floor(scroll), so things put
+    on the line keep their distance from each other whatever starts or stops.
 
     Whatever is said next never replaces what is showing. It is put on the
     line where the next unseen word would have gone, and the line hurries the

@@ -403,9 +403,9 @@ class SoundVisualizer:
         """Draw at (x, y) on a greyscale image, clipped to it.
 
         While the world is tall this is the top of it, so a row going past
-        over the tall world - the overview's, say, or words handed back from
-        it - carries the very rows it would have covered, and nothing is lost
-        from it for the row having been drawn. Shrinking it back is settle's.
+        over the tall world - or words handed back from another panel effect -
+        carries the very rows it would have covered, and nothing is lost from
+        it for the row having been drawn. Shrinking it back is settle's.
         """
         left, right = max(x, 0), min(x + self.width, image.width)
         if left >= right:

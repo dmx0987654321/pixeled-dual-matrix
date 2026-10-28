@@ -1,8 +1,7 @@
 [
-    {"module": "TransitIncidentsModule", "position": 0},
+    {"module": "AudioVisualizerModule", "position": 0},
     {"module": "CpuUsageModule", "height": 4},
     {"module": "RamUsageModule", "height": 1},
     {"module": "ClockModule", "position": 20},
-    {"module": "WorkspaceModule", "position": 33, "height": 1, "pull_with_overview": true},
     {"module": "SandBatteryModule", "height": 6, "position": 13}
 ]

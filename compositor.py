@@ -9,15 +9,12 @@ class Compositor:
         self.modules = []
         self.config = config
         self.layout = None  # Store the layout after the initial placement
-        self.pulled = set()  # modules the overview carries up as it rises
         self.costs = []      # (seconds, name) each module took, last frame
 
-    def add_module(self, module, position=None, pull=False):
+    def add_module(self, module, position=None):
         if not hasattr(module, 'height') or module.height is None:
             raise ValueError(f"Module {module.__class__.__name__} must have a valid height attribute")
         self.modules.append((module, position))
-        if pull:
-            self.pulled.add(module)
 
     def set_scroll_speed(self, px_per_second):
         """Push a runtime scroll speed to every module that accepts one."""
@@ -109,17 +106,11 @@ class Compositor:
             if self.layout is None:
                 raise ValueError("Insufficient space to place all modules")
 
-    def pulled_rows(self):
-        """(top, height) of each laid-out module the overview pulls with it."""
-        self.initialize_layout()
-        return [(y_offset, module.height) for module, y_offset in self.layout
-                if module in self.pulled]
-
     def ticker(self):
         """The module scrolling text along the top row, if it can share it.
 
-        The overview's title goes in the same place, and takes the line over
-        from this module rather than cutting across it.
+        An overlay can take the line over from this module rather than cutting
+        across it.
         """
         self.initialize_layout()
         for module, y_offset in self.layout:

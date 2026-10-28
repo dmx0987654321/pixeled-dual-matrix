@@ -4,9 +4,9 @@ This fork drives two independent Framework 16 LED matrices using the framework
 built by Slowpaste on the main branch. Each is a 9x34 display with its own
 configured layout and animation state.
 
-This fork differs from the original in a few other ways as well:
-- I've built it on Cinnamon, so I haven't updated to make Gnome work
-- I chose to omit the BeamNG modules to streamline it for my use case
+Since I run Cinnamon, not Gnome, workspace status modules are not included.
+I also chose to omit the BeamNG integration as it adds a lot of extra bloat
+that doesn't fit my use case.
 
 ## Panel configuration
 
@@ -37,9 +37,8 @@ matrix at a time and note its location. USB topology locations remain stable
 across reboots, but can change if the connection path or hub changes.
 
 Each panel reconnects independently and is paced according to its own
-firmware. Brightness, scroll-speed overrides, sound visualization, and system
-overlays apply to both panels; layout and panel animations remain independent.
-BeamNG integration has been removed.
+firmware. Brightness, scroll-speed overrides, and sound visualization apply to
+both panels; layout and panel animations remain independent.
 
 ## Installation
 

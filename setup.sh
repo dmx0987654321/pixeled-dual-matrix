@@ -4,7 +4,6 @@
 #
 #   ./setup.sh                 everything below
 #   ./setup.sh --no-firmware   leave the module's firmware alone
-#   ./setup.sh --no-extension  skip the GNOME extension
 #   ./setup.sh --no-service    copy files and build the venv, install no unit
 #   ./setup.sh --yes           don't ask before flashing
 #   PIXELED_INSTALL_DIR=/path ./setup.sh   install somewhere other than /opt/pixeled
@@ -18,12 +17,8 @@
 #    a venv there from requirements.txt. The service runs from the install
 #    directory, not the clone, so editing the clone never disturbs a running
 #    panel.
-# 3. Puts the GNOME extension in place and enables it. The service is a system
-#    unit with no session bus, so this is the only way it learns the workspace,
-#    the overview and the playing track's cover art.
-# 4. Asks for a WMATA API key, if there isn't one already, for the transit row.
-# 5. Installs and starts pixeled.service, running as the invoking user.
-# 6. Flashes the patched firmware onto both matrices - see firmware/README.md for
+# 3. Installs and starts pixeled.service, running as the invoking user.
+# 4. Flashes the patched firmware onto both matrices - see firmware/README.md for
 #    what it changes and why the stock build is too slow for 60 fps greyscale.
 #
 # Re-running it is safe: it is the update path as well as the install, and it
@@ -39,16 +34,14 @@ SOURCE_DIR="$(realpath -e "$SOURCE_DIR")"
 TARGET_DIR="$(realpath -m "$TARGET_DIR")"
 
 do_firmware=true
-do_extension=true
 do_service=true
 assume_yes=false
 for arg in "$@"; do
   case "$arg" in
     --no-firmware)  do_firmware=false ;;
-    --no-extension) do_extension=false ;;
     --no-service)   do_service=false ;;
     --yes|-y)       assume_yes=true ;;
-    -h|--help)      sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;;
+    -h|--help)      sed -n '2,26p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;;
     *)              echo "unknown option: $arg (try --help)" >&2; exit 1 ;;
   esac
 done
@@ -86,9 +79,8 @@ esac
 
 # ── Who this is for ──────────────────────────────────────────────────────────
 
-# Run as yourself, not as root: the extension goes in your home directory and
-# is enabled through your session, and the service runs as you so it can reach
-# your sound server and your ~/.cache/pixeled. The privileged steps sudo for
+# Run as yourself, not as root: the service runs as you so it can reach your
+# sound server and your ~/.cache/pixeled. The privileged steps sudo for
 # themselves.
 [ "$EUID" -ne 0 ] || die "run this as your own user, not with sudo - it will ask when it needs root"
 RUN_USER="$(id -un)"
@@ -189,41 +181,7 @@ fi
 
 mkdir -p "$RUN_HOME/.config/pixeled" "$RUN_HOME/.cache/pixeled"
 
-# ── 3. The GNOME extension ───────────────────────────────────────────────────
-
-if $do_extension; then
-  uuid="pixeled-workspaces@pixeled"
-  dest="$RUN_HOME/.local/share/gnome-shell/extensions/$uuid"
-  if [ -d "$SOURCE_DIR/gnome-extension/$uuid" ]; then
-    say "installing the GNOME extension"
-    mkdir -p "$dest"
-    cp "$SOURCE_DIR/gnome-extension/$uuid"/* "$dest/"
-    if command -v gnome-extensions >/dev/null; then
-      # A freshly copied extension is only picked up when the shell next
-      # starts, so enabling it can fail until then, which is not an error.
-      gnome-extensions enable "$uuid" 2>/dev/null \
-        || warn "log out and back in, then: gnome-extensions enable $uuid"
-    fi
-  else
-    warn "no gnome-extension/$uuid in this clone; skipping"
-  fi
-fi
-
-# ── 4. The transit key ───────────────────────────────────────────────────────
-
-key_file="$RUN_HOME/.config/pixeled/wmata-key"
-if [ ! -s "$key_file" ]; then
-  echo "  The transit row needs a free WMATA API key from developer.wmata.com."
-  echo "  Leave this blank to skip it; the row falls back to the visualizer."
-  read -rsp "  WMATA API key: " key || key=""
-  echo
-  if [ -n "${key:-}" ]; then
-    (umask 077; printf '%s\n' "$key" > "$key_file")
-    say "saved $key_file"
-  fi
-fi
-
-# ── 5. The service ───────────────────────────────────────────────────────────
+# ── 3. The service ───────────────────────────────────────────────────────────
 
 if $do_service; then
   say "installing $SERVICE_NAME"
@@ -249,7 +207,7 @@ UNIT
   sudo systemctl restart "$SERVICE_NAME"
 fi
 
-# ── 6. The firmware ──────────────────────────────────────────────────────────
+# ── 4. The firmware ──────────────────────────────────────────────────────────
 
 if $do_firmware; then
   flash="$TARGET_DIR/firmware/flash-ledmatrix.sh"

@@ -7,7 +7,6 @@ import json
 import importlib
 from compositor import Compositor
 from modules.artwork_overlay import ArtworkOverlay
-from modules.overview_overlay import OverviewOverlay
 from modules.plug_overlay import PlugOverlay
 from PIL import Image
 import re
@@ -43,7 +42,7 @@ FPS_STOCK = 6.0
 
 SETTINGS_POLL_INTERVAL = 1.0  # seconds between checks of the scroll speed file
 
-# How bright the panel is, 0 to 1, as the GNOME quick settings slider has it.
+# How bright the panel is, 0 to 1, as set by the desktop brightness control.
 # In ~/.config rather than beside scroll_speed in /opt/pixeled: it is written
 # from the desktop session, and it is a preference to keep, not state.
 BRIGHTNESS_FILE = os.path.expanduser('~/.config/pixeled/brightness')
@@ -361,7 +360,7 @@ class Panel:
         self._last_frame = None
 
 def read_brightness(fallback):
-    """Read the brightness the GNOME extension's slider wrote, 0 to 1.
+    """Read the user brightness setting, 0 to 1.
 
     Anything unreadable keeps the current brightness, so a missing or
     half-written file can't snap the panel to some other level.
@@ -481,16 +480,14 @@ def load_modules(config, width, height):
         if not hasattr(module_instance, 'height'):
             raise ValueError(f"Module {module_name} does not have a height attribute")
 
-        compositor.add_module(module_instance, position,
-                              mod.get("pull_with_overview", False))
+        compositor.add_module(module_instance, position)
 
     # Initialize layout once
     compositor.initialize_layout()
     return compositor
 
 def render_gauges(compositor, handback=None):
-    """The composed gauges, the rows an overlay pulls along as it rises over
-    them, and the ticker its title shares the top row with.
+    """The composed gauges and the ticker along their top row.
 
     `handback` is an overlay's words for the ticker to carry on from, given
     before anything draws so the ticker picks them up this very frame.
@@ -498,36 +495,10 @@ def render_gauges(compositor, handback=None):
     ticker = compositor.ticker()
     if ticker is not None and handback is not None:
         ticker.take_back(**handback)
-    return compositor.render(), compositor.pulled_rows(), ticker
+    return compositor.render(), ticker
 
-def render_backdrop(artwork, compositor, handback=None):
-    """What the panel shows beneath the overview, the rows it pulls along, and
-    the ticker its title shares the top row with.
-
-    The artwork, or the gauges. The artwork has no rows to pull - it covers
-    them - and while its cover is up its track title has the top row, so the
-    overview shares the row with that instead. Words handed back go to the
-    track if one is playing, and otherwise to the gauges' ticker, even with
-    a cover still on its way out.
-    """
-    if handback is not None:
-        if artwork.playing():
-            artwork.take_back(**handback)
-        else:
-            ticker = compositor.ticker()
-            if ticker is not None:
-                ticker.take_back(**handback)
-    image = artwork.render(lambda words=None: render_gauges(compositor, words))
-    if image is not None:
-        return image, (), artwork.ticker()
-    return render_gauges(compositor)
-
-def render_panel(overview, artwork, compositor):
-    """Render one panel's overview, artwork, or configured gauges."""
-    image = overview.render(
-        lambda handback=None: render_backdrop(artwork, compositor, handback))
-    if image is not None:
-        return image, 'overview'
+def render_panel(artwork, compositor):
+    """Render one panel's artwork or configured gauges."""
     image = artwork.render(lambda words=None: render_gauges(compositor, words))
     if image is not None:
         return image, 'artwork'
@@ -538,8 +509,6 @@ def panel_layout(drawn, artwork, compositor):
     effects to bring it back into place: ('split', ticker) with a title row
     over the rest - ticker being what has the row, if it can be handed over -
     or ('whole', None)."""
-    if drawn == 'overview':
-        return 'split', None
     if drawn == 'artwork':
         if artwork.full_panel():
             return 'whole', None
@@ -559,7 +528,6 @@ def main():
             'panel': Panel(side, locations[side]),
             'compositor': compositor,
             'artwork': ArtworkOverlay(width, height),
-            'overview': OverviewOverlay(width, height),
             'plugs': PlugOverlay(width, height),
             'next_frame': time.monotonic(),
         }
@@ -581,7 +549,6 @@ def main():
         for state in states.values():
             state['compositor'].set_scroll_speed(scroll_speed)
             state['artwork'].set_scroll_speed(scroll_speed)
-            state['overview'].set_scroll_speed(scroll_speed)
             state['plugs'].set_scroll_speed(scroll_speed)
         logging.info(f"Scroll speed: {scroll_speed:.1f} px/s")
 
@@ -619,7 +586,6 @@ def main():
                     for state in states.values():
                         state['compositor'].set_scroll_speed(scroll_speed)
                         state['artwork'].set_scroll_speed(scroll_speed)
-                        state['overview'].set_scroll_speed(scroll_speed)
                         state['plugs'].set_scroll_speed(scroll_speed)
                     logging.info(f"Scroll speed -> {scroll_speed:.1f} px/s")
 
@@ -633,7 +599,7 @@ def main():
                 def under():
                     started = time.monotonic()
                     image, drawn[0] = render_panel(
-                        state['overview'], state['artwork'], state['compositor'])
+                        state['artwork'], state['compositor'])
                     spent[0] += time.monotonic() - started
                     return image
 

@@ -3,4 +3,3 @@ numpy==2.3.4
 perlin-noise==1.13
 pillow==12.0.0
 pyserial==3.5
-requests==2.32.5

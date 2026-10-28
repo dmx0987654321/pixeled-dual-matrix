@@ -757,8 +757,8 @@ class SandBatteryModule(ModuleBase):
         if not self._primed:
             self._prime(target)
 
-        # Clamped at both ends. The upper clamp stops a stall (the artwork or
-        # overview covering it, a config reload) teleporting the pile; the lower one means a clock that
+        # Clamped at both ends. The upper clamp stops a stall (the artwork
+        # covering it, a config reload) teleporting the pile; the lower one means a clock that
         # somehow steps backwards costs one still frame, rather than driving
         # the speck credit negative and wedging the simulation for good.
         now = time.monotonic()
@@ -812,4 +812,3 @@ class SandBatteryModule(ModuleBase):
             grid[lane, first] += light * (1.0 - share)
         if 0 <= first + 1 < depth:
             grid[lane, first + 1] += light * share
-

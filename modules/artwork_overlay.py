@@ -28,8 +28,8 @@ class ArtworkOverlay:
     this takes all 34 rows for as long as it has something to show, so main.py
     asks it for a frame before falling back to the composed one.
 
-    Laid out like the overview. The top five rows are the ticker's, and show
-    the sound visualizer, which scrolls in and stays. Under a blank row, the
+    The top five rows are the ticker's, and show the sound visualizer, which
+    scrolls in and stays. Under a blank row, the
     other 28 are the cover, drifting back and forth for as long as something
     is playing. Covers survive this well - big shapes, high contrast - and the
     art changes by itself every few minutes, which is where the variety comes
@@ -70,19 +70,14 @@ class ArtworkOverlay:
 
     Only the cover slides. The ticker stays where it is and keeps scrolling
     until the cover arrives under it, and then the line changes hands at a
-    word boundary the way it does for the overview: the words already on the
+    word boundary: the words already on the
     panel carry on past, and the visualizer comes in where the next word would
     have, the words ahead of it hurried off - or stays put, if it was what the
     ticker was showing. Stopping gives the line back to the ticker as the
     cover starts down. With no ticker under it, the row rises and falls glued
     to the cover instead.
 
-    The overview slides over this as it does over the gauges, and treats this
-    as the ticker: its title takes the line from the visualizer, and gives it
-    back when it closes - to this if something is still playing, otherwise to
-    the gauges' ticker, as the cover leaves.
-
-    Leaving means outliving the state that justified it - the shell stops
+    Leaving means outliving the state that justified it - the player stops
     publishing the art the moment playback stops, so the cover has to be
     remembered for the frames it takes to get off the panel. It is the same
     travel in reverse through the same positions, so playback resumed part way
@@ -97,8 +92,8 @@ class ArtworkOverlay:
 
     DEFAULT_STATE_FILE = os.path.expanduser('~/.cache/pixeled/artwork')
     CACHE_DIR = os.path.expanduser('~/.cache/pixeled/artwork-remote')
-    POLL_INTERVAL = 0.1     # seconds; matches the workspace indicator
-    TITLE_ROWS = TINY_HEIGHT        # rows 0-4, where the transit ticker scrolls
+    POLL_INTERVAL = 0.1     # seconds between checks of the player state
+    TITLE_ROWS = TINY_HEIGHT        # rows 0-4, where the audio visualizer rests
     ART_TOP = TITLE_ROWS + 1        # one blank row between title and cover
     # px/s, ping-ponging across the cover. Slow, because the picture is there to
     # be looked at rather than read, and still under a pixel a frame on stock
@@ -111,10 +106,7 @@ class ArtworkOverlay:
     SHARPEN = ImageFilter.UnsharpMask(radius=1.0, percent=70, threshold=0)
     DISPLAY_GAMMA = 1.8
     CACHE_ENTRIES = 6       # decoded strips kept, keyed by path and mtime
-    # Seconds to rise over the gauges, or drop off them. Timed like the
-    # overview's slide rather than counted in frames: this used to be two
-    # refreshes, which at the old greyscale rate of ~5.9fps was one halfway
-    # frame and ~340ms of travel, and at ~60fps would be a 33ms cut.
+    # Seconds to rise over the gauges, or drop off them.
     SLIDE_TIME = 0.25
     # px/s, overridden at runtime by pixeled-speed along with the ticker's.
     TEXT_SPEED = 24.0
@@ -207,10 +199,9 @@ class ArtworkOverlay:
     def _read_state(self):
         """Latest published artwork state, or None.
 
-        Unlike the workspace indicator, a bad or missing read clears rather
-        than holding the last value: this covers the gauges, so anything that
-        stops publishing - a shell restart, the extension being disabled -
-        has to give the panel back rather than freeze a picture over it.
+        A bad or missing read clears rather than holding the last value: this
+        covers the gauges, so anything that stops publishing has to give the
+        panel back rather than freeze a picture over it.
         """
         now = time.monotonic()
         if now < self._next_poll:
@@ -388,9 +379,7 @@ class ArtworkOverlay:
         would show a seam that is not in the picture.
         """
         now = time.monotonic()
-        # Capped, because this is not asked for a frame while the overview
-        # covers it: an overview held open for a minute would otherwise spend
-        # that whole minute in one step and fling the window at an edge.
+        # Capped so a delayed frame cannot fling the window at an edge.
         elapsed, self._panned_at = min(now - self._panned_at, 0.25), now
         if travel <= 0:
             # No wider than the panel; nowhere to pan, so time stands in for
@@ -428,8 +417,8 @@ class ArtworkOverlay:
 
     # ── Title ────────────────────────────────────────────────────────────────
 
-    # The title row is a TickerLine, as the overview's is: words carried over
-    # from whoever had the row, and then the sound visualizer, at rest.
+    # The title row carries words handed over by the gauges, then the
+    # sound visualizer at rest.
 
     def _own_line(self, ticker):
         """Take the row: from `ticker` at a word boundary, or with no ticker
@@ -442,27 +431,17 @@ class ArtworkOverlay:
         self._vis_at = self._line.rest(self._visualizer)
 
     def ticker(self):
-        """What has the title row while this is on the panel, for the
-        overview to share it with."""
+        """What has the title row while this is on the panel."""
         return self if self._owns_line else self._ticker
 
     def hand_over(self, width):
-        """Give up the line at the next word, for the overview's title.
-
-        The visualizer stays as grown as it was, under the overview, for the
-        panel to be the same when the overview closes as when it opened. The
-        overview's row draws the top of it while it is still on the line.
-        """
+        """Give up the line at the next word for another panel effect."""
         handback, _ = self._line.give(0.0)
         self._owns_line = False
         return handback['pieces'], handback['x'], handback['speed']
 
     def take_back(self, pieces, x, width, speed, accel, dt):
-        """Resume after the overview's words, the visualizer following them.
-
-        `dt` is the overview's last frame time, standing in for the one this
-        missed, since the line's own clock has been stopped under it.
-        """
+        """Resume the visualizer after another panel effect used the title row."""
         self._line.take_back(pieces, x, speed, dt)
         self._owns_line = True
         self._clock = time.monotonic() - dt
@@ -553,13 +532,8 @@ class ArtworkOverlay:
 
         Only from rest in its place, so it never grows out of words still going
         along the row. Already grown, it stays so while words go past over its
-        top - the overview's, handed back as it closes. Dropping back into the
-        row at once is for when the row is not this view's at all: the cover
-        arriving under the gauges' ticker, or leaving.
-
-        It used to drop back for words on the row too, and closing the
-        overview over the whole-panel visualizer showed the cover under it
-        while the overview's words went by, before growing out over it again.
+        top. Dropping back into the row at once is for when the row is not this
+        view's at all: the cover arriving under the gauges' ticker, or leaving.
         """
         if not self._owns_line:
             self._grow = 0.0
@@ -679,9 +653,7 @@ class ArtworkOverlay:
     def _move_slide(self, direction):
         """Advance the slide toward home (+1) or off the bottom edge (-1).
 
-        dt is clamped like the overview's slide: this is not asked for a frame
-        while the overview covers it, and the time spent under there should
-        not be spent in one step when it is uncovered.
+        dt is clamped so a delayed frame cannot move the cover in one jump.
         """
         now = time.monotonic()
         dt = 0.0 if self._slide_at is None else min(max(now - self._slide_at, 0.0), 0.05)
@@ -692,12 +664,12 @@ class ArtworkOverlay:
         """What the cover slides over: the gauges, the (top, height) of rows
         in them to pull up with it, and their ticker. `handback` is the
         title's words for that ticker, given before the gauges draw."""
-        base, pulled, ticker = (under(handback) if under is not None
-                                else (None, (), None))
+        base, ticker = (under(handback) if under is not None
+                        else (None, None))
         if base is None or base.size != (self.width, self.height):
-            base, pulled, ticker = Image.new('L', (self.width, self.height), 0), (), None
+            base, ticker = Image.new('L', (self.width, self.height), 0), None
         self._ticker = ticker
-        return base, pulled, ticker
+        return base, ticker
 
     def _let_go(self, under, dt):
         """Give the line back to the gauges' ticker, and return the backdrop.
@@ -710,7 +682,7 @@ class ArtworkOverlay:
         # to carry on drawing.
         self._visualizer.settle()
         backdrop = self._backdrop(under, handback)
-        if self._owns_line and backdrop[2] is not None:
+        if self._owns_line and backdrop[1] is not None:
             self._owns_line = False
         return backdrop
 
@@ -742,28 +714,20 @@ class ArtworkOverlay:
 
         With a ticker in the backdrop only the cover rises, under title rows
         that are the ticker's or, once the line is this one's, the title's.
-        Without one, the title rises glued to the cover. Rows the backdrop
-        marks as pulled ride along just above the cover, as if it were pushing
-        them up, as they do for the overview.
+        Without one, the title rises glued to the cover.
 
         The gauges are drawn onto a copy. They arrive as whatever the
         compositor happens to hold and pasting into that would leave the
         picture in it, to be redrawn as part of the gauges a frame later.
         """
-        base, pulled, ticker = backdrop
+        base, ticker = backdrop
         base = base.copy() if base.mode == 'L' else base.convert('L')
-        bands = [(top, base.crop((0, top, self.width, top + rows)))
-                 for top, rows in pulled]
         rise = self.TITLE_ROWS if ticker is not None else 0
         if self.height - shift > rise:
             base.paste(frame.crop((0, rise, self.width, self.height - shift)),
                        (0, rise + shift))
         if rise and self._owns_line:
             base.paste(frame.crop((0, 0, self.width, rise)), (0, 0))
-        for top, band in bands:
-            y = shift + self.ART_TOP - band.height
-            if y <= top:
-                base.paste(band, (0, y))
         return base
 
     def _clear(self):
@@ -781,9 +745,8 @@ class ArtworkOverlay:
     def render(self, under=None):
         """A full-panel frame, or None to let the gauges through.
 
-        `under` is an optional callable returning what render_backdrop in
-        main.py does for the gauges alone - the composed frame, the rows to
-        pull, and their ticker - given any words to hand that ticker first.
+        `under` is an optional callable returning the composed gauges and
+        their ticker, given any words to hand that ticker first.
         A callable rather than an image because only the frames of a slide
         need it, and rendering the gauges beneath a settled cover would be
         work thrown away.
@@ -827,7 +790,7 @@ class ArtworkOverlay:
         backdrop = None
         if shift > 0:
             backdrop = self._backdrop(under)
-            if not self._owns_line and backdrop[2] is None:
+            if not self._owns_line and backdrop[1] is None:
                 # Nothing to share the row with: the row rises with the cover.
                 self._own_line(None)
         elif not self._owns_line:
