@@ -17,6 +17,7 @@ import signal
 from utils.sound_medium import SoundMedium
 from utils.plug_physics import Breach, Ripple
 from utils.sound_visualizer import sound_visualizer
+from utils.plug_watch import PowerWatch
 
 # Panel geometry and the input-module serial protocol (FrameworkComputer/inputmodule-rs)
 WIDTH, HEIGHT = 9, 34
@@ -372,7 +373,7 @@ def read_brightness(fallback):
         return fallback
     return min(max(value, 0.0), 1.0) if value == value else fallback
 
-def apply_tuning(seen, plug_overlays):
+def apply_tuning(seen, plug_overlays, right_plugs):
     """Apply the tuning file if it has changed since `seen`, and return what
     to pass next time: (the file's mtime, the thump counter, the sockets'
     counters, whether to hold the visualizer over the panel), or None."""
@@ -402,10 +403,12 @@ def apply_tuning(seen, plug_overlays):
     thump = data.get('thump')
     # Each socket can be plugged and pulled from the sliders, to see what it
     # does. Only one asked for while running acts, not one left in the file.
-    sockets = {name: [(plugs.jack if 'jack' in name else plugs.power,
-                       'in' if name.endswith('_in') else 'out')
-                      for plugs in plug_overlays]
-               for name in ('jack_in', 'jack_out', 'power_in', 'power_out')}
+    sockets = {
+        'jack_in': [(right_plugs.jack, 'in')],
+        'jack_out': [(right_plugs.jack, 'out')],
+        'power_in': [(plugs.power, 'in') for plugs in plug_overlays],
+        'power_out': [(plugs.power, 'out') for plugs in plug_overlays],
+    }
     counters = {name: data.get(name) for name in sockets}
     if seen is not None:
         if thump != seen[1]:
@@ -415,7 +418,8 @@ def apply_tuning(seen, plug_overlays):
             # older or hand-written file should not set the panel off.
             if count is not None and count != seen[2].get(name):
                 for port, event in sockets[name]:
-                    port.watch.pretend(event)
+                    if port.watch is not None:
+                        port.watch.pretend(event)
     return stamp, thump, counters, data.get('hold_visualizer', True) is not False
 
 def tuning_open():
@@ -528,15 +532,18 @@ def main():
             'panel': Panel(side, locations[side]),
             'compositor': compositor,
             'artwork': ArtworkOverlay(width, height),
-            'plugs': PlugOverlay(width, height),
+            'plugs': PlugOverlay(
+                width, height,
+                power_watch=PowerWatch(side),
+                watch_jack=side == 'right',
+                side=side),
             'next_frame': time.monotonic(),
         }
 
     plug_overlays = [state['plugs'] for state in states.values()]
 
     def pretend_socket(event):
-        for plugs in plug_overlays:
-            plugs.jack.watch.pretend(event)
+        states['right']['plugs'].jack.watch.pretend(event)
 
     # For trying them out without the headphones: kill -USR1 plugs in,
     # kill -USR2 pulls out. The pixeled-tune buttons do either socket.
@@ -559,7 +566,7 @@ def main():
     next_settings_check = time.monotonic()
     next_brightness_check = next_settings_check
     next_tuning_check = next_settings_check
-    tuning = apply_tuning(None, plug_overlays)
+    tuning = apply_tuning(None, plug_overlays, states['right']['plugs'])
 
     try:
         while True:
@@ -572,7 +579,8 @@ def main():
 
             if now >= next_tuning_check:
                 next_tuning_check = now + TUNING_POLL_INTERVAL
-                tuning = apply_tuning(tuning, plug_overlays)
+                tuning = apply_tuning(tuning, plug_overlays,
+                                      states['right']['plugs'])
                 hold_full = tuning is not None and tuning[3] and tuning_open()
                 for state in states.values():
                     state['artwork'].hold_full = hold_full

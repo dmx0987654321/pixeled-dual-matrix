@@ -4,16 +4,12 @@ This fork drives two independent Framework 16 LED matrices using the framework
 built by Slowpaste on the main branch. Each is a 9x34 display with its own
 configured layout and animation state.
 
-Since I run Cinnamon, not Gnome, workspace status modules are not included.
-I also chose to omit the BeamNG integration as it adds a lot of extra bloat
-that doesn't fit my use case.
-
 ## Panel configuration
 
 The layouts are [config.left.json](./config.left.json) and
-[config.right.json](./config.right.json). They start with the same modules;
-edit either file independently to choose what its panel displays. The service
-loads these side-specific files rather than `config.json`.
+[config.right.json](./config.right.json). Edit either file independently to
+choose what its panel displays. The service loads these side-specific files
+rather than `config.json`.
 
 The matrices share a USB vendor/product ID, so USB enumeration order cannot
 reliably identify which is physically left or right. Use the USB topology
@@ -23,7 +19,7 @@ location to map each panel:
    with their USB location in `service.log` (or use `journalctl -u
    pixeled.service`).
 2. Copy [panel-ports.json.example](./panel-ports.json.example) to
-   `~/.config/pixeled-dual-matrix/panel-ports.json`.
+   `~/.config/pixeled/panel-ports.json`.
 3. Replace `null` with the exact logged locations, for example:
 
        {
@@ -39,6 +35,13 @@ across reboots, but can change if the connection path or hub changes.
 Each panel reconnects independently and is paced according to its own
 firmware. Brightness, scroll-speed overrides, and sound visualization apply to
 both panels; layout and panel animations remain independent.
+
+Headphone plug animations are shown on the right panel. Charger animations
+follow the side supplying power: this machine reports UCSI connectors 001 and
+002 on the right, and 003 and 004 on the left. The mapping is in
+`utils/plug_watch.py` if connector numbering differs on another machine. Socket
+animations originate from each panel's outer edge; the left panel's animation
+is mirrored so its port effects face outward too.
 
 ## Installation
 

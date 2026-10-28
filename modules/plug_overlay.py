@@ -13,8 +13,8 @@ from utils.tiny_font import TINY_HEIGHT
 class PlugOverlay:
     """The laptop's sockets, felt through the panel.
 
-    Two of them are level with the panel, on the right edge, and everything
-    here starts from where they are:
+    The sockets are level with the panel's outer edge, and everything here
+    starts from there:
 
     - the headphone jack, JACK_FROM_BOTTOM pixels up from the bottom corner,
       counting that corner as the first. A plug is about a pixel of the edge.
@@ -59,14 +59,21 @@ class PlugOverlay:
     # px/s, overridden at runtime by pixeled-speed along with the tickers'.
     TEXT_SPEED = 24.0
 
-    def __init__(self, width, height, jack_watch=None, power_watch=None):
+    def __init__(self, width, height, jack_watch=None, power_watch=None,
+                 watch_jack=True, side='right'):
         self.width = width
         self.height = height
+        if side not in ('left', 'right'):
+            raise ValueError(f"Unknown panel side: {side!r}")
+        self.side = side
         low, high = self.POWER_ROWS
         self.jack = _Port(width, height, height - self.JACK_FROM_BOTTOM + 0.5,
-                          self.JACK_OPENING, jack_watch or JackWatch())
+                          self.JACK_OPENING,
+                          jack_watch if jack_watch is not None else
+                          (JackWatch() if watch_jack else None), side)
         self.power = _Port(width, height, (low + high) / 2, high - low,
-                           power_watch or PowerWatch())
+                           power_watch if power_watch is not None else
+                           PowerWatch(side), side)
         self._ports = (self.jack, self.power)
         self._line = TickerLine(width, self.TEXT_SPEED)   # for its ramps
         self._kind = 'whole'
@@ -146,6 +153,8 @@ class PlugOverlay:
         self._since += dt
 
         for port in self._ports:
+            if port.watch is None:
+                continue
             for event in port.watch.events():
                 if event == 'out':
                     snapshot = self._last
@@ -156,7 +165,9 @@ class PlugOverlay:
                     # Whichever socket was last pulled has the panel: a second
                     # one pulled mid-drain takes what is left out through its
                     # own hole rather than waiting its turn.
-                    port.breach.start(snapshot)
+                    breach_frame = (np.fliplr(snapshot) if port.mirrored
+                                    else snapshot)
+                    port.breach.start(breach_frame)
                     self._state, self._since, self._draining = 'breach', 0.0, port
                 elif event == 'in':
                     if self._state in ('breach', 'empty'):
@@ -177,6 +188,8 @@ class PlugOverlay:
             breach = self._draining.breach
             breach.advance(dt)
             frame = breach.pixels(dt)
+            if self._draining.mirrored:
+                frame = np.fliplr(frame)
             if breach.drained:
                 self._state, self._since, self._draining = 'empty', 0.0, None
         elif self._state == 'empty':
@@ -196,7 +209,9 @@ class PlugOverlay:
 class _Port:
     """One socket: where it is on the panel, and what it does to it."""
 
-    def __init__(self, width, height, row, opening, watch):
+    def __init__(self, width, height, row, opening, watch, side):
         self.watch = watch
-        self.ripple = Ripple(width, height, width, row)
+        edge = 0 if side == 'left' else width
+        self.mirrored = side == 'left'
+        self.ripple = Ripple(width, height, edge, row)
         self.breach = Breach(width, height, width, row, opening)

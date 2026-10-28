@@ -11,6 +11,16 @@ KERNEL_GROUP = 1        # uevents as the kernel sends them, before udev
 # The Framework Audio Expansion Card, whose jack the headphones go in.
 AUDIO_CARD_VID, AUDIO_CARD_PID = 0x32AC, 0x0010
 POWER_SUPPLIES = '/sys/class/power_supply'
+POWER_CONNECTORS_BY_SIDE = {
+    'right': (
+        'ucsi-source-psy-USBC000:001',
+        'ucsi-source-psy-USBC000:002',
+    ),
+    'left': (
+        'ucsi-source-psy-USBC000:003',
+        'ucsi-source-psy-USBC000:004',
+    ),
+}
 
 
 class PlugWatch:
@@ -111,21 +121,23 @@ class JackWatch(PlugWatch):
 
 
 class PowerWatch(PlugWatch):
-    """The charger going into the USB-C port and coming out.
+    """The charger going into either USB-C port on one side and coming out.
 
-    Whichever port it is in: what matters is that the laptop is on mains, which
-    the kernel says plainly. The announcement itself usually carries the new
-    state, and anything else the batteries and ports have to say sends us to
-    read it.
+    UCSI exposes each USB-C connector as its own power supply. Its ``online``
+    state identifies a connected power source on that connector, allowing the
+    animation to stay on the side where the charger is plugged in.
     """
 
+    def __init__(self, side):
+        if side not in POWER_CONNECTORS_BY_SIDE:
+            raise ValueError(f"Unknown side for power watcher: {side!r}")
+        self.supplies = POWER_CONNECTORS_BY_SIDE[side]
+        super().__init__()
+
     def plugged_in(self):
-        for supply in glob.glob(f'{POWER_SUPPLIES}/*'):
+        for supply in self.supplies:
             try:
-                with open(os.path.join(supply, 'type')) as f:
-                    if f.read().strip() != 'Mains':
-                        continue
-                with open(os.path.join(supply, 'online')) as f:
+                with open(os.path.join(POWER_SUPPLIES, supply, 'online')) as f:
                     if f.read().strip() == '1':
                         return True
             except OSError:
@@ -135,11 +147,10 @@ class PowerWatch(PlugWatch):
     def _state_from(self, fields):
         if not any(f.startswith('SUBSYSTEM=power_supply') for f in fields):
             return None
-        if 'POWER_SUPPLY_TYPE=Mains' in fields:
-            online = next((f.partition('=')[2] for f in fields
-                           if f.startswith('POWER_SUPPLY_ONLINE=')), None)
-            if online is not None:
-                return online.strip() == '1'
-        # A battery's own news, or a port's, or a mains supply that did not say:
-        # ask what the state is now, which is as true for one as for another.
+        name = next((f.partition('=')[2] for f in fields
+                     if f.startswith('POWER_SUPPLY_NAME=')), None)
+        if name not in self.supplies:
+            return None
+        # Read both connectors on this side: unplugging one should not trigger
+        # an "out" event if its other port is still supplying power.
         return self.plugged_in()
