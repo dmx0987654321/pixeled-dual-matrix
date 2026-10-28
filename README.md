@@ -1,7 +1,12 @@
 # pixeled - dual Framework 16 LED matrices
 
-This fork drives two independent Framework 16 LED matrices. Each is a 9x34
-display with its own configured layout and animation state.
+This fork drives two independent Framework 16 LED matrices using the framework
+built by Slowpaste on the main branch. Each is a 9x34 display with its own
+configured layout and animation state.
+
+This fork differs from the original in a few other ways as well:
+- I've built it on Cinnamon, so I haven't updated to make Gnome work
+- I chose to omit the BeamNG modules to streamline it for my use case
 
 ## Panel configuration
 
