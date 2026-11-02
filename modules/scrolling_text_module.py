@@ -5,7 +5,7 @@ from PIL import Image
 from utils.tiny_font import draw_tiny_text
 
 class ScrollingTextModule(ModuleBase):
-    def __init__(self, height, scroll_speed=24.0):
+    def __init__(self, height, scroll_speed=6.0):
         super().__init__(height)
         # Pixels per second. Runtime-settable via the pixeled-speed script,
         # because how fast text can go before it smears is a property of the

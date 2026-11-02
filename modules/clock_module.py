@@ -5,7 +5,7 @@ from utils.tiny_font import draw_tiny_text
 
 class ClockModule(ModuleBase):
     def __init__(self):
-        super().__init__(11)  # Updated clock module height to 11 pixels
+        super().__init__(11)
 
     def render(self, width):
         image = super().render(width)

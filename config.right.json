@@ -1,6 +1,6 @@
 [
-    {"module": "AudioVisualizerModule", "position": 0},
+    {"module": "AudioVisualizerModule", "position": 13},
     {"module": "CpuUsageModule", "height": 4},
-    {"module": "RamUsageModule", "height": 1},
-    {"module": "SandBatteryModule", "height": 6, "position": 13}
+    {"module": "VramUsageModule", "height": 1},
+    {"module": "DateModule", "position": 20}
 ]
