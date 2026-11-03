@@ -4,12 +4,16 @@ This fork drives two independent Framework 16 LED matrices using the framework
 built by Slowpaste on the main branch. Each is a 9x34 display with its own
 configured layout and animation state.
 
+This fork does not include support for the GNOME extension as I use the 
+Cinnamon desktop so I cannot guarantee it would work. It also does not include
+the BeamNG modules for similar reasons; if you would like, you can get them 
+from the original repo and they *should* still work.
+
 ## Panel configuration
 
 The layouts are [config.left.json](./config.left.json) and
 [config.right.json](./config.right.json). Edit either file independently to
-choose what its panel displays. The service loads these side-specific files
-rather than `config.json`.
+choose what its panel displays.
 
 The matrices share a USB vendor/product ID, so USB enumeration order cannot
 reliably identify which is physically left or right. Use the USB topology
